@@ -1,20 +1,58 @@
 version: 2.1
 jobs:
   compile:
-   docker:
-      - image: ubuntu:20.04
-   steps:
+    docker:
+      - image: ubuntu:22.04
+    steps:
+      - checkout
       - run:
+          name: Install build dependencies 
           command: |
-           apt-get -y update && apt-get -y upgrade && apt-get -y install bc build-essential zip curl libstdc++6 git wget gcc clang libssl-dev rsync flex bison cpio libncurses5 curl python-is-python3 kmod
-           git config --global user.name "prorooter007"
-           git config --global user.email "shreyashwasnik112@gmail.com"
-           git config --global color.ui false
-           git clone https://github.com/akhilnarang/scripts && cd scripts && bash setup/android_build_env.sh && cd ..
-           mkdir predator
-           cd predator
-           wget https://raw.githubusercontent.com/prorooter007/Lightning_android_kernel_samsung_sm8350/main_dvl1/build_menu
-           source build_menu
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get -y update && apt-get -y upgrade && apt-get -y install \
+              bc build-essential zip curl libstdc++6 git wget gcc clang libssl-dev \
+              rsync flex bison cpio libncurses5 curl python-is-python3 kmod sudo tzdata
+      - run:
+          name: Set timezone to Europe/Warsaw
+          command: |
+            ln -fs /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
+            dpkg-reconfigure --frontend noninteractive tzdata
+      - run:
+          name: Install GitHub CLI (gh) 
+          command: |
+            type -p curl >/dev/null || apt-get install curl -y
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            apt-get update
+            apt-get install gh -y
+      - run:
+          name: Configure git
+          command: |
+            git config --global user.name "gothdawid"
+            git config --global user.email "dawidstu@gmail.com"
+            git config --global color.ui false
+      - run:
+          name: Remove existing scripts folder
+          command: rm -rf scripts
+      - run:
+          name: Clone android build scripts
+          command: |
+            git clone https://github.com/akhilnarang/scripts && cd scripts && bash setup/android_build_env.sh && cd ..
+      - run:
+          name: Prepare kernel source
+          command: |
+            mkdir predator
+            cd predator
+            wget https://raw.githubusercontent.com/gothdawid/Samsung_g990b_kernel/refs/heads/stock_s21_fe/build_menu
+      - run:
+          name: Build Android kernel
+          command: |
+            cd predator
+            source build_menu
+      - store_artifacts:
+          path: predator/out
+          destination: kernel_build_output
 workflows:
   version: 2.1
   cooking:
